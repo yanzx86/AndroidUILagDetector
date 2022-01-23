@@ -1,2 +1,2 @@
-include ':app'
+include ':app', ':skt_demo_module'
 rootProject.name = "My Application"
