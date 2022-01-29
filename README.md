@@ -6,45 +6,93 @@
 建议仅在开发环境接入, 用来调查UI卡顿问题. 不建议接入到生产环境.<br>
 因为使用ASM会大量插入检测代码. 增大代码体积.
 
-### Gradle接入
+### 接入
+cdt1.0.0.rar 中, repo 和 sktConfigs解压到工程root目录:
+```
+root\
+  |- repo
+  |- sktConfigs
+  |- app  //app 工程
 
 ```
-暂时, 先参照工程里, skating_plugin 和 skating_client的相关配置吧. 
+cdr1.0.0.aar 移动到 app/libs目录
+```
+root\
+  |- repo
+  |- sktConfigs
+  |- app  //app 工程
+      |- libs
+          |- cdr1.0.0.aar  //aar文件
+
+```
+
+### Gradle接入
+root/build.gradle
+
+```gradle
+buildscript {
+    
+    google()
+    jcenter()
+    
+    //cdt repo
+    repositories {
+        maven {
+            url uri('repo')  //添加本地仓库
+        }
+    }
+}
+dependencies {
+
+    //cdt编译插件
+    classpath 'com.yanzx.lib:skating_plugin:1.0.0'
+}
+```
+
+app/build.gradle
+```gradle
+
+apply plugin: 'com.yanzx.lib'
+
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])  //添加aar依赖
+}
+
 ```
 
 ### java代码
 
 ```java
 
-        //初始化Skt
-        HandlerThread ht = new HandlerThread("SKT_LOOPER");
+        //初始化cdt
+        HandlerThread ht = new HandlerThread("CDT_LOOPER");
         ht.start();
 
-        //SKT需要一个后台线程的Looper, 用来处理耗时方法信息
-        Skt.init(ht.getLooper());
+        //CDT需要一个后台线程的Looper, 用来处理耗时方法信息
+        CDT.init(ht.getLooper());
 
         //设置报告生成的路径
-        Skt.outputFilePath(
+        CDT.outputFilePath(
                 getExternalFilesDir(null).getAbsolutePath()+"/LagReport.txt");
 
         //设置"报告"需要关注的包名, 耗时排行的报告将主要关注包名所在的类.
-        Skt.addFilter("com.yanzx.demo");        //这里改成你自己的包名
-        Skt.addFilter("com.yanzx.lib.demo");  //或者其它你关注的包名. 
+        CDT.addFilter("com.some.your.pkg.name");        //这里改成你自己的包名
+        CDT.addFilter("com.some.your.other.pkg.name");  //或者其它你关注的包名. 
 
         //上面两行可以也直接写成这样. 匹配过程是 pkgName.startwith(xxx)
-        Skt.addFilter("com.yanzx");
+        CDT.addFilter("com.some.your");
 
         //以"TAG_onCreate"为Tag, 开始监听耗时方法
-        Skt.startTrace("TAG_onCreate");
+        CDT.startTrace("TAG_onCreate");
 
         //监听到某一帧超过 GData.LAG_TIME时, 触发回调
-        Skt.setLagListener(new Skt.ILagListener() {
+        CDT.setLagListener(new Skt.ILagListener() {
             @Override
             public boolean lagFrame(SktMethodNode lagFrame) {
-                Log.e("SKT", "lagFrame");
+                Log.e("CDT", "lagFrame");
                 lagFrame.print();
                 //lagFrame.printAndClear();
-                Log.e("SKT", "lagFrame end");
+                Log.e("CDT", "lagFrame end");
                 return true;
             }
         });
@@ -55,10 +103,10 @@
 ```java
 
         //开始统计帧率
-        Skt.startFpsCount();
+        CDT.startFpsCount();
         //.....
         //统计startFpsCount() 到 endFpsCount()之间, 这段时间的帧率数据, 输出到logcat
-        Skt.endFpsCount();
+        CDT.endFpsCount();
 ```
 
 帧率统计日志
@@ -77,8 +125,8 @@ TAG_onStart_FPS:90.12629| frame:157| dur:1.742
 ### 日志输出&报告
 
 ```java
-        //输出报告文件到Skt.outputFilePath()指定的路径
-        Skt.outputLagToFile();
+        //输出报告文件到CDT.outputFilePath()指定的路径
+        CDT.outputLagToFile();
 ```
 
 #### 日志格式:
@@ -89,7 +137,7 @@ TAG_onStart     500ms com.yanzx.lib.demo.SubClass(->SubClassClass2).paramThis(Su
 
 |字段|说明|
 |-:|:-|
-**TAG_onStart**| 就是Skt.startTrace("TAG_onStart")设置的标签, 会记录在这里
+**TAG_onStart**| 就是CDT.startTrace("TAG_onStart")设置的标签, 会记录在这里
 **500ms** |表示这个方法耗时500ms
 **com.yanzx.lib.demo.SubClass** |表示方法paramThis()所在的类
 **(->SubClassClass2)** |表示实际调用paramThis()的对象, 是SubClass的子类`SubClassClass2`
@@ -113,7 +161,8 @@ TAG_onStart     500ms com.yanzx.lib.demo.SubClass(->SubClassClass2).paramThis(Su
 
 ```mermaid
 graph LR
-MainActivity_4.run-->|调用|lagTest1-->|调用|lagTest2
+MainActivity_4.run-->|调用|lagTest1
+lagTest1-->|调用|lagTest2
 lagTest2-->|调用|lagTest3
 lagTest2-->|调用|lagTest3_[lagTest3]
 lagTest3-->|调用|lagTest4
@@ -129,11 +178,11 @@ lagTest3()调用了lagTest4()
 
 ```java
     public void lagTest1() {
-        lagTest2();
+        lagTest2(); //耗时64ms
     }
     public void lagTest2() {
-        lagTest3();
-        lagTest3();
+        lagTest3(); //耗时32ms
+        lagTest3(); //耗时32ms
     }
     public void lagTest3() {
         lagTest4();
@@ -232,20 +281,21 @@ TAG_onCreate: LAG_CNT: 0
 ```
 
 ### 其它配置:
-在工程目录root/sktConfigs/文件夹下, 可放置如下配置文件
-configs.json. SKT的调式标记. "debug": true时会打印更多更完整的信息
+在工程目录root/sktConfigs/文件夹下, 可放置如下配置文件:
+
+**configs.json**. CDT的调式标记. "debug": true时会打印更多更完整的信息
 ```json
 {
     "debug": true
 }
 ```
 
-skt_skip_annotation.txt. SKT会忽略文件中注解标识的类. 每一行一个注解. 
+**skt_skip_annotation.txt**. CDT会忽略文件中注解标识的注解. 每一行一个注解.
 ```json5
 androidx.annotation.RestrictTo
 ```
 
-skt_skip_class.txt. SKT会忽略文件中注解标识的类或者包. 每一行代表一个类或者包, 以className.startWith(xxx)方式匹配
+**skt_skip_class.txt**. CDT会忽略文件中注解标识的类或者包. 每一行代表一个类或者包, 以className.startWith(xxx)方式匹配
 ```json5
 androidx
 ```
