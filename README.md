@@ -83,7 +83,7 @@ dependencies {
 `CDT.startTrace(yourTag);`可以多次调用. 可以使用yourTag参数, 来标记不同的耗时信息. 该标记会在Log和文件报告中打印.
 
 
-在调用`CDT.startTrace()`之后停止所有统计, 不区分Tag.
+在调用`CDT.endTrace()`之后停止所有统计, 不区分Tag.
 
 
 #### 可选项
