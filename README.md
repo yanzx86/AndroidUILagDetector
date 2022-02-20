@@ -9,7 +9,7 @@
 ### 接入
 cdt1.0.0.rar 中, repo 和 sktConfigs解压到工程root目录:
 ```
-root\
+yourProjecctRoot\
   |- repo
   |- sktConfigs
   |- app  //app 工程
@@ -17,7 +17,7 @@ root\
 ```
 cdr1.0.0.aar 移动到 app/libs目录
 ```
-root\
+yourProjecctRoot\
   |- repo
   |- sktConfigs
   |- app  //app 工程
@@ -26,8 +26,8 @@ root\
 
 ```
 
-### Gradle接入
-root/build.gradle
+### Gradle依赖
+yourProjecctRoot/build.gradle
 
 ```gradle
 buildscript {
@@ -62,30 +62,44 @@ dependencies {
 
 ### java代码
 
+#### 必需项:
 ```java
 
-        //初始化cdt
+        //(* 必需) 初始化cdt  
         HandlerThread ht = new HandlerThread("CDT_LOOPER");
         ht.start();
 
-        //CDT需要一个后台线程的Looper, 用来处理耗时方法信息
+        //(* 必需) CDT需要一个后台线程的Looper, 用来处理耗时方法信息 
         CDT.init(ht.getLooper());
 
-        //设置报告生成的路径
+        //(* 必需) 以"TAG_onCreate"为Tag, 开始监听耗时方法 
+        CDT.startTrace("TAG_onCreate");
+
+```
+
+在调用`CDT.startTrace();`之后. 即开始统计所有方法耗时. 
+
+
+`CDT.startTrace(yourTag);`可以多次调用. 可以使用yourTag参数, 来标记不同的耗时信息. 该标记会在Log和文件报告中打印.
+
+
+在调用`CDT.startTrace()`之后停止所有统计, 不区分Tag.
+
+
+#### 可选项
+```java
+        //设置报告生成的路径 (可选)
         CDT.outputFilePath(
                 getExternalFilesDir(null).getAbsolutePath()+"/LagReport.txt");
 
-        //设置"报告"需要关注的包名, 耗时排行的报告将主要关注包名所在的类.
+        //设置"报告"需要关注的包名, 耗时排行的报告将主要关注包名所在的类. (可选)
         CDT.addFilter("com.some.your.pkg.name");        //这里改成你自己的包名
         CDT.addFilter("com.some.your.other.pkg.name");  //或者其它你关注的包名. 
 
-        //上面两行可以也直接写成这样. 匹配过程是 pkgName.startwith(xxx)
+        //上面两行可以也直接写成这样. 匹配过程是 pkgName.startwith(xxx) (可选)
         CDT.addFilter("com.some.your");
 
-        //以"TAG_onCreate"为Tag, 开始监听耗时方法
-        CDT.startTrace("TAG_onCreate");
-
-        //监听到某一帧超过 GData.LAG_TIME时, 触发回调
+        //监听到某一帧超过 GData.LAG_TIME时, 触发回调 (可选)
         CDT.setLagListener(new Skt.ILagListener() {
             @Override
             public boolean lagFrame(SktMethodNode lagFrame) {
@@ -97,30 +111,6 @@ dependencies {
             }
         });
 ```
-
-#### 帧率统计
-
-```java
-
-        //开始统计帧率
-        CDT.startFpsCount();
-        //.....
-        //统计startFpsCount() 到 endFpsCount()之间, 这段时间的帧率数据, 输出到logcat
-        CDT.endFpsCount();
-```
-
-帧率统计日志
-
-```json5
-//TAG_onStart标签下, 帧率91.1271fps. 一共38帧, 时长0.417ms
-TAG_onStart_FPS:91.1271| frame:38| dur:0.417
-```
-
-```
-//TAG_onStart标签下, 帧率90.12629fps. 一共38帧, 时长1.742ms
-TAG_onStart_FPS:90.12629| frame:157| dur:1.742
-```
-
 
 ### 日志输出&报告
 
@@ -137,11 +127,11 @@ TAG_onStart     500ms com.yanzx.lib.demo.SubClass(->SubClassClass2).paramThis(Su
 
 |字段|说明|
 |-:|:-|
-**TAG_onStart**| 就是CDT.startTrace("TAG_onStart")设置的标签, 会记录在这里
-**500ms** |表示这个方法耗时500ms
-**com.yanzx.lib.demo.SubClass** |表示方法paramThis()所在的类
-**(->SubClassClass2)** |表示实际调用paramThis()的对象, 是SubClass的子类`SubClassClass2`
-**(SubClass.java:5)**   |     方法paramThis()所在的代码位置
+|**TAG_onStart**| 就是CDT.startTrace("TAG_onStart")设置的标签, 会记录在这里 |
+|**500ms** |表示这个方法耗时500ms |
+|**com.yanzx.lib.demo.SubClass** |表示方法paramThis()所在的类 |
+|**(->SubClassClass2)** |表示实际调用paramThis()的对象, 是SubClass的子类`SubClassClass2` |
+|**(SubClass.java:5)**   |     方法paramThis()所在的代码位置 |
 
 #### 调用堆栈关系
 
@@ -279,6 +269,31 @@ lagTest3()调用了lagTest4()
 TAG_onStart: LAG_CNT: 21
 TAG_onCreate: LAG_CNT: 0
 ```
+
+#### 帧率统计
+
+```java
+
+        //开始统计帧率
+        CDT.startFpsCount();
+        //.....
+        //统计startFpsCount() 到 endFpsCount()之间, 这段时间的帧率数据, 输出到logcat
+        CDT.endFpsCount();
+```
+
+输出的帧率统计日志, 格式如下:
+
+```json5
+TAG_onStart_FPS:91.1271| frame:38| dur:0.417
+```
+TAG_onStart标签下, 帧率91.1271fps. 一共38帧, 时长0.417ms
+
+<br>
+```
+TAG_onStart_FPS:90.12629| frame:157| dur:1.742
+```
+TAG_onStart标签下, 帧率90.12629fps. 一共38帧, 时长1.742ms
+
 
 ### 其它配置:
 在工程目录root/sktConfigs/文件夹下, 可放置如下配置文件:
