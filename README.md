@@ -305,7 +305,7 @@ TAG_onStart标签下, 帧率90.12629fps. 一共38帧, 时长1.742ms
 }
 ```
 
-**skt_skip_annotation.txt**. CDT会忽略文件中注解标识的注解. 每一行一个注解.
+**skt_skip_annotation.txt**. CDT会忽略文件中标识的注解. 每一行一个注解.
 ```json5
 androidx.annotation.RestrictTo
 ```
